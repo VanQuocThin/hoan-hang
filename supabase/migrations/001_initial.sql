@@ -1,3 +1,26 @@
+-- Drop everything cleanly (idempotent)
+drop policy if exists "merchant owns their data" on merchants;
+drop policy if exists "public portal read" on merchants;
+drop policy if exists "merchant policy" on return_policies;
+drop policy if exists "public policy read" on return_policies;
+drop policy if exists "merchant returns" on "returns";
+drop policy if exists "public returns create" on "returns";
+drop policy if exists "merchant workflows" on workflows;
+drop policy if exists "merchant credits" on store_credits;
+drop policy if exists "merchant events" on return_events;
+
+drop trigger if exists returns_updated_at on "returns";
+drop trigger if exists set_return_code on "returns";
+drop function if exists update_updated_at();
+drop function if exists generate_return_code();
+
+drop table if exists return_events cascade;
+drop table if exists store_credits cascade;
+drop table if exists workflows cascade;
+drop table if exists "returns" cascade;
+drop table if exists return_policies cascade;
+drop table if exists merchants cascade;
+
 -- Merchants (store owners)
 create table merchants (
   id uuid primary key default gen_random_uuid(),
@@ -32,8 +55,8 @@ create table return_policies (
   unique(merchant_id)
 );
 
--- Returns (core entity)
-create table returns (
+-- Returns core entity (quoted to avoid PostgreSQL keyword conflict)
+create table "returns" (
   id uuid primary key default gen_random_uuid(),
   merchant_id uuid references merchants(id) on delete cascade,
   return_code text unique not null,
@@ -81,16 +104,16 @@ create table store_credits (
   customer_phone text,
   amount bigint not null,
   used_amount bigint default 0,
-  return_id uuid references returns(id),
+  return_id uuid references "returns"(id),
   expires_at timestamptz,
   created_at timestamptz default now()
 );
 
--- Analytics events (for dashboard charts)
+-- Analytics events
 create table return_events (
   id uuid primary key default gen_random_uuid(),
   merchant_id uuid references merchants(id) on delete cascade,
-  return_id uuid references returns(id) on delete cascade,
+  return_id uuid references "returns"(id) on delete cascade,
   event_type text not null,
   metadata jsonb default '{}',
   created_at timestamptz default now()
@@ -99,33 +122,34 @@ create table return_events (
 -- RLS
 alter table merchants enable row level security;
 alter table return_policies enable row level security;
-alter table returns enable row level security;
+alter table "returns" enable row level security;
 alter table workflows enable row level security;
 alter table store_credits enable row level security;
 alter table return_events enable row level security;
 
+-- Merchant-scoped policies
 create policy "merchant owns their data" on merchants for all using (auth.uid() = user_id);
 create policy "merchant policy" on return_policies for all using (merchant_id in (select id from merchants where user_id = auth.uid()));
-create policy "merchant returns" on returns for all using (merchant_id in (select id from merchants where user_id = auth.uid()));
+create policy "merchant returns" on "returns" for all using (merchant_id in (select id from merchants where user_id = auth.uid()));
 create policy "merchant workflows" on workflows for all using (merchant_id in (select id from merchants where user_id = auth.uid()));
 create policy "merchant credits" on store_credits for all using (merchant_id in (select id from merchants where user_id = auth.uid()));
 create policy "merchant events" on return_events for all using (merchant_id in (select id from merchants where user_id = auth.uid()));
 
--- Public read for portal (by store_slug)
+-- Public access for customer portal
 create policy "public portal read" on merchants for select using (true);
-create policy "public returns create" on returns for insert with check (true);
+create policy "public returns create" on "returns" for insert with check (true);
 create policy "public policy read" on return_policies for select using (true);
 
--- Auto-update returns.updated_at
+-- Trigger: auto-update updated_at
 create or replace function update_updated_at()
 returns trigger as $$
 begin new.updated_at = now(); return new; end;
 $$ language plpgsql;
 
-create trigger returns_updated_at before update on returns
+create trigger returns_updated_at before update on "returns"
 for each row execute function update_updated_at();
 
--- Generate readable return code
+-- Trigger: auto-generate readable return code
 create or replace function generate_return_code()
 returns trigger as $$
 begin
@@ -134,5 +158,5 @@ begin
 end;
 $$ language plpgsql;
 
-create trigger set_return_code before insert on returns
+create trigger set_return_code before insert on "returns"
 for each row execute function generate_return_code();
