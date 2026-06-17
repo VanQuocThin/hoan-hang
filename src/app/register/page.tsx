@@ -36,19 +36,19 @@ export default function RegisterPage() {
     }
 
     const slug = slugify(form.storeName) || `store-${Date.now()}`
-    const { error: merchantError } = await supabase.from('merchants').insert({
-      user_id: data.user.id,
-      store_name: form.storeName,
-      store_slug: slug,
-    })
+    const { data: merchantData, error: merchantError } = await supabase
+      .from('merchants')
+      .insert({ user_id: data.user.id, store_name: form.storeName, store_slug: slug })
+      .select('id')
+      .single()
 
-    if (merchantError) {
+    if (merchantError || !merchantData) {
       setError('Tên cửa hàng đã tồn tại, hãy chọn tên khác')
       setLoading(false)
       return
     }
 
-    await supabase.from('return_policies').insert({ merchant_id: data.user.id })
+    await supabase.from('return_policies').insert({ merchant_id: merchantData.id })
     router.push('/dashboard')
   }
 
