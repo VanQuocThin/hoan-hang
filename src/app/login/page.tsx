@@ -6,6 +6,7 @@ import { RefreshCcw } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { IS_DEV_MODE, setDevSession } from '@/lib/dev-auth'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -18,6 +19,13 @@ export default function LoginPage() {
     e.preventDefault()
     setError('')
     setLoading(true)
+
+    if (IS_DEV_MODE) {
+      setDevSession({ email, storeName: 'Cửa hàng Demo', storeSlug: 'demo' })
+      router.push('/dashboard')
+      return
+    }
+
     const supabase = createClient()
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) {

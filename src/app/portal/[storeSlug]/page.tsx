@@ -4,21 +4,55 @@ import PortalFlow from '@/components/portal/portal-flow'
 
 export default async function PortalPage({ params }: { params: Promise<{ storeSlug: string }> }) {
   const { storeSlug } = await params
-  const supabase = await createClient()
 
-  const { data: merchant } = await supabase
-    .from('merchants')
-    .select('id, store_name, store_slug, logo_url, primary_color, platform')
-    .eq('store_slug', storeSlug)
-    .single()
+  let merchant = null
+  let policy = null
+
+  if (storeSlug === 'demo') {
+    merchant = {
+      id: 'demo-merchant-id',
+      store_name: 'Cửa hàng Demo (Fashion)',
+      store_slug: 'demo',
+      logo_url: null,
+      primary_color: '#2563eb', // blue-600
+      platform: 'demo',
+    }
+    policy = {
+      id: 'demo-policy-id',
+      merchant_id: 'demo-merchant-id',
+      return_window_days: 30,
+      exchange_bonus_vnd: 20000,
+      store_credit_bonus_vnd: 10000,
+      auto_approve: true,
+    }
+  } else {
+    try {
+      const supabase = await createClient()
+      const { data: merchantData, error: merchantError } = await supabase
+        .from('merchants')
+        .select('id, store_name, store_slug, logo_url, primary_color, platform')
+        .eq('store_slug', storeSlug)
+        .single()
+
+      if (merchantError || !merchantData) {
+        notFound()
+      }
+      merchant = merchantData
+
+      const { data: policyData } = await supabase
+        .from('return_policies')
+        .select('*')
+        .eq('merchant_id', merchant.id)
+        .single()
+      
+      policy = policyData
+    } catch (error) {
+      console.error('Database fetch error:', error)
+      notFound()
+    }
+  }
 
   if (!merchant) notFound()
-
-  const { data: policy } = await supabase
-    .from('return_policies')
-    .select('*')
-    .eq('merchant_id', merchant.id)
-    .single()
 
   return (
     <div

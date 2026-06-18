@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
+import { IS_DEV_MODE, clearDevSession } from '@/lib/dev-auth'
 import type { Merchant } from '@/types'
 
 const navItems = [
@@ -24,6 +25,11 @@ export default function DashboardNav({ merchant }: { merchant: Merchant }) {
   const router = useRouter()
 
   async function handleLogout() {
+    if (IS_DEV_MODE) {
+      clearDevSession()
+      router.push('/login')
+      return
+    }
     const supabase = createClient()
     await supabase.auth.signOut()
     router.push('/login')

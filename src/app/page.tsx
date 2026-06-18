@@ -261,12 +261,16 @@ export default function HomePage() {
 
       {/* Footer */}
       <footer className="border-t border-gray-100 py-8">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 text-sm text-gray-400">
+        <div className="mx-auto flex max-w-6xl flex-col gap-4 sm:flex-row sm:items-center sm:justify-between px-6 text-sm text-gray-400">
           <div className="flex items-center gap-2">
             <div className="flex h-6 w-6 items-center justify-center rounded-md bg-blue-600">
               <RefreshCcw className="h-3 w-3 text-white" />
             </div>
             <span className="font-medium text-gray-600">HoànHàng</span>
+          </div>
+          <div className="flex gap-6 text-xs">
+            <Link href="/terms" className="hover:text-gray-600 transition-colors">Điều khoản dịch vụ</Link>
+            <Link href="/privacy" className="hover:text-gray-600 transition-colors">Chính sách bảo mật</Link>
           </div>
           <span>© 2025 HoànHàng. Made in Vietnam.</span>
         </div>

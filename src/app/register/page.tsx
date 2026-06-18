@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { slugify } from '@/lib/utils'
+import { IS_DEV_MODE, setDevSession } from '@/lib/dev-auth'
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -22,6 +23,13 @@ export default function RegisterPage() {
     e.preventDefault()
     setError('')
     setLoading(true)
+
+    if (IS_DEV_MODE) {
+      const slug = slugify(form.storeName) || `store-${Date.now()}`
+      setDevSession({ email: form.email, storeName: form.storeName, storeSlug: slug })
+      router.push('/dashboard')
+      return
+    }
 
     const supabase = createClient()
     const { data, error: signUpError } = await supabase.auth.signUp({

@@ -10,23 +10,49 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Thiếu thông tin' }, { status: 400 })
   }
 
-  const supabase = await createClient()
-  const { data: merchant } = await supabase
-    .from('merchants')
-    .select('id, platform, platform_store_url, platform_api_key, platform_api_secret')
-    .eq('id', merchantId)
-    .single()
+  let merchant = null
+  let policy = null
+
+  if (merchantId === 'demo-merchant-id') {
+    merchant = {
+      id: 'demo-merchant-id',
+      platform: 'demo',
+      platform_store_url: null,
+      platform_api_key: null,
+      platform_api_secret: null
+    }
+    policy = {
+      return_window_days: 30
+    }
+  } else {
+    try {
+      const supabase = await createClient()
+      const { data: merchantData } = await supabase
+        .from('merchants')
+        .select('id, platform, platform_store_url, platform_api_key, platform_api_secret')
+        .eq('id', merchantId)
+        .single()
+
+      merchant = merchantData
+
+      if (merchant) {
+        const { data: policyData } = await supabase
+          .from('return_policies')
+          .select('return_window_days')
+          .eq('merchant_id', merchantId)
+          .single()
+        
+        policy = policyData
+      }
+    } catch (error) {
+      console.error('Lookup API database error:', error)
+      return NextResponse.json({ error: 'Lỗi kết nối cơ sở dữ liệu' }, { status: 500 })
+    }
+  }
 
   if (!merchant) {
     return NextResponse.json({ error: 'Không tìm thấy cửa hàng' }, { status: 404 })
   }
-
-  // Check return policy window
-  const { data: policy } = await supabase
-    .from('return_policies')
-    .select('return_window_days')
-    .eq('merchant_id', merchantId)
-    .single()
 
   let order = null
 
